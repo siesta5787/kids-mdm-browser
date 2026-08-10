@@ -2,6 +2,7 @@ package com.kidsmdm.browser.tabs
 
 import android.view.ViewGroup
 import android.webkit.WebView
+import com.kidsmdm.browser.util.DarkModeWebViewConfigurator
 
 /**
  * Owns the actual `Map<TabId, WebView>` - the one class allowed to touch WebView instances
@@ -62,5 +63,13 @@ class TabWebViewHost {
         detach()
         webViews.values.forEach { it.destroy() }
         webViews.clear()
+    }
+
+    /** Re-applies content dark-mode to every already-open tab, not just tabs created after a
+     * system theme change - [WebViewFactory] only sets this once, at WebView construction time. */
+    fun updateDarkMode(isDark: Boolean) {
+        webViews.values.forEach { webView ->
+            DarkModeWebViewConfigurator.apply(webView.settings, isDark)
+        }
     }
 }

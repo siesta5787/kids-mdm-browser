@@ -36,7 +36,9 @@ class TabManager(
     private var isSystemDark = false
 
     fun setSystemDark(dark: Boolean) {
+        if (isSystemDark == dark) return
         isSystemDark = dark
+        host.updateDarkMode(dark)
     }
 
     fun webViewHost(): TabWebViewHost = host

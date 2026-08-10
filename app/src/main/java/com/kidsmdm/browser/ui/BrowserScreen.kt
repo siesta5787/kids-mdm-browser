@@ -9,15 +9,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.kidsmdm.browser.pdf.PdfExporter
 import com.kidsmdm.browser.tabs.TabId
 import com.kidsmdm.browser.tabs.TabManager
 
 @Composable
 fun BrowserScreen(viewModel: BrowserViewModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val tabs by viewModel.tabs.collectAsState()
     val activeTabId by viewModel.activeTabId.collectAsState()
     val customView by viewModel.customView.collectAsState()
+    val overlay by viewModel.overlay.collectAsState()
+    val bookmarks by viewModel.bookmarks.collectAsState()
+    val isCurrentUrlBookmarked by viewModel.isCurrentUrlBookmarked.collectAsState()
+    val historyItems by viewModel.historyItems.collectAsState()
     val activeTab = tabs.find { it.id == activeTabId }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -26,9 +33,16 @@ fun BrowserScreen(viewModel: BrowserViewModel, modifier: Modifier = Modifier) {
                 url = activeTab?.url.orEmpty(),
                 progress = activeTab?.progress ?: 0,
                 isLoading = activeTab?.isLoading ?: false,
+                isBookmarked = isCurrentUrlBookmarked,
                 onSubmit = viewModel::onSubmitAddress,
                 onNewTab = viewModel::newTab,
-                onMenu = { /* overflow menu (bookmark toggle, PDF, share, history) - task 13 */ },
+                onToggleBookmark = viewModel::toggleBookmarkForCurrentTab,
+                onShowBookmarks = viewModel::showBookmarks,
+                onShowHistory = viewModel::showHistory,
+                onSaveAsPdf = {
+                    val webView = viewModel.tabManager.activeWebView() ?: return@AddressBar
+                    PdfExporter.export(context, webView, activeTab?.title)
+                },
             )
             TabStrip(
                 tabs = tabs,
@@ -44,7 +58,11 @@ fun BrowserScreen(viewModel: BrowserViewModel, modifier: Modifier = Modifier) {
                 if (activeTab != null && activeTab.url.isNotBlank()) {
                     WebViewContainer(tabManager = viewModel.tabManager, tabId = activeTab.id)
                 } else {
-                    NewTabScreen(modifier = Modifier.fillMaxSize())
+                    NewTabScreen(
+                        bookmarks = bookmarks,
+                        onOpenBookmark = viewModel::onSubmitAddress,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }
@@ -56,6 +74,23 @@ fun BrowserScreen(viewModel: BrowserViewModel, modifier: Modifier = Modifier) {
                 factory = { state.view },
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+
+        when (overlay) {
+            OverlayScreen.BOOKMARKS -> BookmarksScreen(
+                bookmarks = bookmarks,
+                onOpen = viewModel::openFromOverlay,
+                onDelete = viewModel::deleteBookmark,
+                onBack = viewModel::dismissOverlay,
+                modifier = Modifier.fillMaxSize(),
+            )
+            OverlayScreen.HISTORY -> HistoryScreen(
+                items = historyItems,
+                onOpen = viewModel::openFromOverlay,
+                onBack = viewModel::dismissOverlay,
+                modifier = Modifier.fillMaxSize(),
+            )
+            OverlayScreen.NONE -> Unit
         }
     }
 }

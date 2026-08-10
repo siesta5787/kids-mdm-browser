@@ -7,12 +7,20 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,9 +38,13 @@ fun AddressBar(
     url: String,
     progress: Int,
     isLoading: Boolean,
+    isBookmarked: Boolean,
     onSubmit: (String) -> Unit,
     onNewTab: () -> Unit,
-    onMenu: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onShowBookmarks: () -> Unit,
+    onShowHistory: () -> Unit,
+    onSaveAsPdf: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -55,8 +67,33 @@ fun AddressBar(
                 IconButton(onClick = onNewTab) {
                     Icon(Icons.Filled.Add, contentDescription = "New tab")
                 }
-                IconButton(onClick = onMenu) {
+                IconButton(onClick = onToggleBookmark, enabled = url.isNotBlank()) {
+                    Icon(
+                        if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                        contentDescription = if (isBookmarked) "Remove bookmark" else "Add bookmark",
+                    )
+                }
+                var menuExpanded by remember { mutableStateOf(false) }
+                IconButton(onClick = { menuExpanded = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Bookmarks") },
+                        leadingIcon = { Icon(Icons.Outlined.Bookmarks, contentDescription = null) },
+                        onClick = { menuExpanded = false; onShowBookmarks() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("History") },
+                        leadingIcon = { Icon(Icons.Filled.History, contentDescription = null) },
+                        onClick = { menuExpanded = false; onShowHistory() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Save as PDF") },
+                        leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
+                        enabled = url.isNotBlank(),
+                        onClick = { menuExpanded = false; onSaveAsPdf() },
+                    )
                 }
             },
         )
