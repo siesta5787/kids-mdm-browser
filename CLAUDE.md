@@ -56,13 +56,24 @@ Device Owner) - `am start`/`monkey` both failed with "Activity class does not ex
 `START_CLASS_NOT_FOUND`, despite `dumpsys package` showing the activity correctly registered,
 `aapt dump badging` confirming the compiled manifest was correct, and the package showing
 `suspended=false hidden=false`. Lock Task mode was also confirmed inactive
-(`mLockTaskModeState=NONE`). Root cause not fully pinned down - some Device-Owner-driven
-restriction is blocking launch of a non-allowlisted sideloaded app through a path that doesn't
-show up in the usual suspend/hide/lock-task checks. **Installing and launching the exact same APK
-on a plain AVD emulator (`test_avd`) worked immediately, first try** - use the emulator for
-day-to-day feature development/iteration, not the live enrolled device, until this is understood.
-If you need to test against real Device-Owner policy enforcement specifically, that's a distinct,
-deliberate test - don't expect ordinary `adb install && am start` iteration to work there.
+(`mLockTaskModeState=NONE`).
+
+**Likely explanation** (per the user, not independently re-verified against `AppEnforcer.kt`'s
+exact runtime behavior yet): this device's MDM policy blocks sideloading, i.e.
+`applySideloadRestriction`'s `DISALLOW_INSTALL_UNKNOWN_SOURCES`/`_GLOBALLY` restrictions. The
+`adb install` step itself still reports `Success` and the package genuinely lands (confirmed via
+`dumpsys package`) - ADB's own install path isn't gated by this restriction the same way
+Play-Store/PackageInstaller sideloading is - but something downstream of that (component
+resolution for launch) still gets blocked for a non-allowlisted, non-Play-Store-installed app on
+a device enrolled this way. Doesn't fully explain why `dumpsys` shows a seemingly-normal,
+non-suspended registration either way; treat as a working theory, not a confirmed root cause, if
+this needs to be debugged further later.
+
+**Installing and launching the exact same APK on a plain AVD emulator (`test_avd`) worked
+immediately, first try** - use the emulator for day-to-day feature development/iteration, not the
+live enrolled device. If you need to test against real Device-Owner policy enforcement
+specifically (including this sideload restriction), that's a distinct, deliberate test - don't
+expect ordinary `adb install && am start` iteration to work there.
 
 Verifying the journal write path can't use `adb shell content query` directly either, even on a
 clean emulator - that runs as the `shell` UID, which correctly gets rejected with a

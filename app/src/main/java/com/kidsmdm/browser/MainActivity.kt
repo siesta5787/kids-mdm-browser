@@ -1,63 +1,70 @@
 package com.kidsmdm.browser
 
-import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import com.kidsmdm.browser.journal.JournalDatabase
+import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.LaunchedEffect
+import com.kidsmdm.browser.ui.BrowserScreen
 import com.kidsmdm.browser.ui.BrowserTheme
+import com.kidsmdm.browser.ui.BrowserViewModel
 
-/**
- * Scaffold-stage placeholder: a single hardcoded-URL WebView in a Compose Material3 Scaffold,
- * just to get a green build before layering the real tab/journal/bookmarks/history features on
- * top - see the plan's verification order (steps 1-2). Wires onPageFinished -> recordVisit here
- * (pre-multi-tab) specifically to verify the journal write path end-to-end via
- * `adb shell content query --uri content://com.kidsmdm.browser.journal/entries/0` before
- * building TabManager/BrowserWebViewClient on top of it. Replaced by BrowserScreen/
- * BrowserViewModel once TabManager exists.
- */
 class MainActivity : ComponentActivity() {
+    private val viewModel: BrowserViewModel by viewModels {
+        BrowserViewModel.factory(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            BrowserTheme {
-                Scaffold { innerPadding ->
-                    PlaceholderWebView(modifier = Modifier.padding(innerPadding))
-                }
-            }
-        }
-    }
-}
 
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun PlaceholderWebView(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    AndroidView(
-        modifier = modifier,
-        factory = {
-            WebView(context).apply {
-                settings.javaScriptEnabled = true
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        super.onPageFinished(view, url)
-                        if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
-                            JournalDatabase.getInstance(context).recordVisit(url, view.title)
-                        }
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (!viewModel.handleBackPress()) {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
                     }
                 }
-                loadUrl("https://www.kiddle.co")
+            },
+        )
+
+        setContent {
+            val isSystemDark = isSystemInDarkTheme()
+            LaunchedEffect(isSystemDark) { viewModel.setSystemDark(isSystemDark) }
+
+            BrowserTheme {
+                BrowserScreen(viewModel = viewModel)
             }
-        },
-    )
+        }
+
+        // First launch: load straight into the one blank tab BrowserViewModel's init already
+        // opened, rather than leaving it on the New Tab screen - this is what makes the
+        // VIEW/BROWSABLE intent-filter (kids-mdm-im message links etc.) actually work, not just
+        // be declared in the manifest.
+        intent?.dataString?.let { url -> viewModel.onSubmitAddress(url) }
+    }
+
+    /** singleTask launchMode means an already-running instance gets this instead of a fresh
+     * onCreate - open the link in a new tab rather than clobbering whatever the kid is already
+     * doing, matching how every other browser handles "opened from another app while running." */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.dataString?.let { url -> viewModel.tabManager.openNewTab(url) }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.tabManager.activeWebView()?.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.tabManager.activeWebView()?.onResume()
+    }
 }
