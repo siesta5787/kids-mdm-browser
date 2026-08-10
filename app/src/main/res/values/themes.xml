@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch-time/manifest theme only - Compose owns the actual UI theming (see
+         ui/BrowserTheme.kt), this just needs to exist and be a reasonable window background
+         before Compose content attaches. -->
+    <style name="Theme.KidsMdmBrowser" parent="Theme.Material3.DayNight.NoActionBar" />
+</resources>
