@@ -1,16 +1,17 @@
 package com.kidsmdm.browser.util
 
+import android.content.Context
 import android.util.Patterns
+import java.net.URLEncoder
 
 /**
- * Address-bar text -> either a normalized URL or a Kiddle search query, using the same
- * "looks-like-a-host" heuristic every browser uses. Purely a UX choice, not a safety one - the
- * DNS-layer filter applies regardless of which search engine (or none) is used, see the plan.
+ * Address-bar text -> either a normalized URL or a search query, using the same "looks-like-a-
+ * host" heuristic every browser uses. Purely a UX choice, not a safety one - the DNS-layer filter
+ * applies regardless of which search engine (or none) is used, see the plan. Search engine itself
+ * defaults to Kiddle but can be overridden by MDM policy - see [SearchProviderPolicy].
  */
 object UrlOrSearchResolver {
-    private const val SEARCH_BASE_URL = "https://www.kiddle.co/s.php?q="
-
-    fun resolve(input: String): String {
+    fun resolve(context: Context, input: String): String {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return ""
 
@@ -24,7 +25,9 @@ object UrlOrSearchResolver {
             return "https://$trimmed"
         }
 
-        return SEARCH_BASE_URL + java.net.URLEncoder.encode(trimmed, "UTF-8")
+        val encoded = URLEncoder.encode(trimmed, "UTF-8")
+        return SearchProviderPolicy.searchUrlTemplate(context)
+            .replace(SearchProviderPolicy.SEARCH_TERMS_PLACEHOLDER, encoded)
     }
 
     /** Catches simple bare hosts like "example.com" or "localhost" that [Patterns.WEB_URL]

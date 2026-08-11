@@ -47,6 +47,19 @@ rationale in the approved plan this was built from (ask if you need the historic
   on-device verification spike described in the plan — not yet done as of this writing.
 - **kid-phone-server**'s `/api/devices/browser-history` endpoint already exists, matches the
   upload shape the launcher already sends — no changes needed there.
+- **MDM-controlled search engine (browser side built, launcher/server side not yet)**:
+  `util/SearchProviderPolicy.kt` reads a `SearchEngineUrl` string restriction via the same
+  `setApplicationRestrictions` delivery mechanism as the rest of the policy bundle above — no new
+  plumbing needed on the launcher side beyond adding this one key to the bundle it already pushes
+  to `com.kidsmdm.browser`. Contract: the string must contain the literal placeholder
+  `{searchTerms}` (same convention as Chrome's own `DefaultSearchProviderSearchURL` enterprise
+  policy, reused here for a familiar admin-UI mental model even though this app doesn't read
+  Chrome's actual policy), e.g. `https://www.google.com/search?q={searchTerms}`. A pushed value
+  missing the placeholder is treated as unset. Falls back to Kiddle — verified live that this
+  fallback still works correctly (`https://m.kiddle.co/s.php?q=<query>`) with no restriction
+  present, matching pre-existing behavior. Read fresh via `RestrictionsManager` on every search —
+  no broadcast receiver needed, a policy push takes effect on the very next search with no app
+  restart. The actual server-admin UI + launcher-side push of this key is not built yet.
 
 ## Non-obvious gotcha: testing on the real enrolled device vs. an emulator
 

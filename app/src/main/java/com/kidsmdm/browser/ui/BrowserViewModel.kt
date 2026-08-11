@@ -88,7 +88,7 @@ class BrowserViewModel(context: Context) : ViewModel() {
     }
 
     fun onSubmitAddress(text: String) {
-        val url = UrlOrSearchResolver.resolve(text)
+        val url = UrlOrSearchResolver.resolve(appContext, text)
         if (url.isEmpty()) return
         val activeId = tabManager.activeTabId.value
         if (activeId != null) {
