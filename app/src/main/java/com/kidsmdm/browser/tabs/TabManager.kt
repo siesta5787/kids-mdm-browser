@@ -56,6 +56,15 @@ class TabManager(
         return id
     }
 
+    /** Re-opens tabs saved by [TabPersistence] on a cold start - each just re-navigates to its
+     * last URL (see [PersistedTab]'s own doc comment on why that's a fresh load, not a true
+     * WebView state restore). No-op if [persisted] is empty. */
+    fun restoreTabs(persisted: List<PersistedTab>, activeIndex: Int) {
+        if (persisted.isEmpty()) return
+        val ids = persisted.map { openNewTab(it.url) }
+        ids.getOrNull(activeIndex)?.let { switchTo(it) }
+    }
+
     fun closeTab(tabId: TabId) {
         host.remove(tabId)
         val remaining = _tabs.value.filterNot { it.id == tabId }

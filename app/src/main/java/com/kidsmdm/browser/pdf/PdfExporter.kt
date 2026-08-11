@@ -11,6 +11,12 @@ import java.util.Locale
 /**
  * Hands off to the system Print framework - its own UI already includes a "Save as PDF" printer,
  * so there's no need for this app to touch storage permissions or write files itself.
+ *
+ * A fully picker-free export (driving WebView's PrintDocumentAdapter's onLayout/onWrite directly)
+ * was attempted and is not possible through the public SDK: PrintDocumentAdapter.
+ * LayoutResultCallback/WriteResultCallback both have package-private constructors - only the
+ * system print spooler process can construct them, confirmed via a real compile error
+ * ("Cannot access constructor... it is package-private"), not assumed. See CLAUDE.md.
  */
 object PdfExporter {
     fun export(context: Context, webView: WebView, documentName: String?) {

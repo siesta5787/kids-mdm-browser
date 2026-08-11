@@ -23,7 +23,8 @@ fun TabStrip(
     onClose: (TabId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (tabs.size <= 1) return // no reason to show a strip for a single tab
+    // Always rendered, even for a single tab - otherwise there is no way to close the last
+    // remaining tab (closing it re-opens a blank one; see BrowserViewModel.closeTab).
     LazyRow(modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
         items(tabs, key = { it.id.value }) { tab ->
             FilterChip(

@@ -86,6 +86,34 @@ works well enough to confirm a row landed). `content query` via `run-as` doesn't
 `content` shell command itself requires `ACCESS_CONTENT_PROVIDERS_EXTERNALLY`, which only
 shell/system hold, regardless of which UID `run-as` switches to.
 
+## Known platform limitations (confirmed, not guessed)
+
+- **WebView content dark mode (`ALGORITHMIC_DARKENING`) does not visually darken plain pages on
+  a stock AVD emulator WebView build (Chrome 133), even though every documented signal checks out
+  correct**: `WebViewFeature.isFeatureSupported(ALGORITHMIC_DARKENING)` is true,
+  `WebSettingsCompat.setAlgorithmicDarkeningAllowed` reads back true immediately after being set,
+  `FORCE_DARK_STRATEGY` is explicitly forced to `DARK_STRATEGY_USER_AGENT_DARKENING_ONLY`, and the
+  WebView's own `Context` (see `tabs/WebViewFactory.kt`'s `darkAwareContext`) is confirmed via
+  logging to carry `UI_MODE_NIGHT_YES`. Content still renders light on both a trivial page
+  (`example.com`) and a real one (Wikipedia). This looks like a genuine WebView-implementation
+  limitation for this provider/version, not a gap in this code - re-test on real
+  GrapheneOS/Vanadium hardware (the actual target WebView provider) before assuming otherwise, a
+  different provider can behave differently here.
+- **A fully picker-free "Save as PDF" (driving `WebView.createPrintDocumentAdapter()`'s
+  `onLayout`/`onWrite` directly, bypassing `PrintManager`'s UI) is not possible through the public
+  SDK.** `PrintDocumentAdapter.LayoutResultCallback` and `WriteResultCallback` both have
+  package-private constructors - confirmed via a real compile error
+  (`Cannot access constructor... it is package-private`), not assumed. Only the system print
+  spooler process can construct them and pass them into your adapter's own overrides; app code
+  cannot instantiate them to drive someone else's adapter. `pdf/PdfExporter.kt` therefore still
+  goes through `PrintManager.print()`, which shows the system Print UI (with "Save as PDF" as one
+  of the printer choices, not a dedicated skip-the-picker path). The only way around this
+  entirely would be a from-scratch rasterized capture (draw the WebView's content onto a
+  `PdfDocument` canvas manually) - not implemented, since it would produce image-only,
+  non-selectable-text output and risks visible layout glitches capturing a live, attached WebView
+  at full content height; revisit only if the print-picker screen turns out to be a real problem
+  in practice, not preemptively.
+
 ## Reference-only, not forked
 
 `anthonycr/Lightning-Browser` (MPL-2.0) and `plateaukao/einkbro` (GPLv3+) may be read for

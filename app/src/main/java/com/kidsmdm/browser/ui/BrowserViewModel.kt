@@ -9,8 +9,10 @@ import com.kidsmdm.browser.bookmarks.BookmarkEntity
 import com.kidsmdm.browser.bookmarks.BookmarkRepository
 import com.kidsmdm.browser.history.HistoryItem
 import com.kidsmdm.browser.journal.JournalDatabase
+import com.kidsmdm.browser.tabs.PersistedTab
 import com.kidsmdm.browser.tabs.TabId
 import com.kidsmdm.browser.tabs.TabManager
+import com.kidsmdm.browser.tabs.TabPersistence
 import com.kidsmdm.browser.util.UrlOrSearchResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -66,8 +68,23 @@ class BrowserViewModel(context: Context) : ViewModel() {
 
     init {
         if (tabManager.tabs.value.isEmpty()) {
-            tabManager.openNewTab()
+            val (persisted, activeIndex) = TabPersistence.restore(appContext)
+            if (persisted.isNotEmpty()) {
+                tabManager.restoreTabs(persisted, activeIndex)
+            } else {
+                tabManager.openNewTab()
+            }
         }
+    }
+
+    /** Called from MainActivity.onStop - saves the open tab list so it can be restored on the
+     * next cold start (a real app close/process death, not just rotation - see TabManager's own
+     * ViewModel-scoping doc comment for why that alone isn't enough). */
+    fun persistTabs() {
+        val tabList = tabs.value.filter { it.url.isNotBlank() }
+        val persisted = tabList.map { PersistedTab(url = it.url, title = it.title) }
+        val activeIndex = tabList.indexOfFirst { it.id == activeTabId.value }
+        TabPersistence.save(appContext, persisted, activeIndex)
     }
 
     fun onSubmitAddress(text: String) {

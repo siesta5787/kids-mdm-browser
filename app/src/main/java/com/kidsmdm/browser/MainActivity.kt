@@ -67,4 +67,11 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.tabManager.activeWebView()?.onResume()
     }
+
+    /** Not onPause - onStop covers "backgrounded long enough that the process might die"
+     * without saving on every transient pause (e.g. a permission dialog). */
+    override fun onStop() {
+        super.onStop()
+        viewModel.persistTabs()
+    }
 }
