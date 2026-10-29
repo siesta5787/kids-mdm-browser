@@ -35,10 +35,15 @@ rationale in the approved plan this was built from (ask if you need the historic
   `_id > sinceId`, oldest-first, capped at 200. Consumed as-is by `kids-launcher-mdm`'s
   `BrowserHistorySync.kt` — don't touch that file to make this one easier, change this one to
   match it instead.
-- **Signature-permission blocker**: `ACCESS_JOURNAL` only grants to a caller signed with this
-  app's *exact* certificate. Currently blocked the same way as `kids-mdm-im`'s conversation
-  journal — all three apps need the same production signing key before this actually works
-  end-to-end on a real enrolled device (debug-keystore testing works fine standalone, see below).
+- **Signing**: `ACCESS_JOURNAL` only grants to a caller signed with this app's *exact*
+  certificate, so this app, `kids-launcher-mdm` and `kids-mdm-im` all sign with one shared Kids
+  MDM release key (since v0.03, 2026-10-28 - before that, hand-built debug APKs with package
+  `com.kidsmdm.browser.debug`). Shipped builds are the **release** variant, package
+  `com.kidsmdm.browser`, built and signed only by `.github/workflows/release.yml` on a pushed
+  `vX.YY` tag (secrets `RELEASE_KEYSTORE`/`RELEASE_KEYSTORE_PASSWORD`/`RELEASE_KEY_ALIAS`) - bump
+  `versionCode`/`versionName` in `app/build.gradle.kts`, push, then push the matching tag. Don't
+  publish locally-built APKs. Release builds aren't debuggable, so the `run-as` trick below only
+  works on a local debug build (emulator), not on an enrolled phone.
 - **MDM policy bundle** already pushed by `kids-launcher-mdm`'s `AppEnforcer.applyBrowserPolicy()`
   via `setApplicationRestrictions` — `DnsOverHttpsMode`, `IncognitoModeAvailability`,
   `BrowserGuestModeEnabled`, `DeveloperToolsAvailability`, `ExtensionInstallBlocklist`,

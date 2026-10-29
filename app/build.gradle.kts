@@ -13,8 +13,8 @@ android {
         applicationId = "com.kidsmdm.browser"
         minSdk = 34
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.02"
+        versionCode = 3
+        versionName = "0.03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -23,9 +23,27 @@ android {
         }
     }
 
+    // Shipped builds are the release variant, signed with the shared Kids MDM release key (same
+    // key as kids-launcher-mdm and kids-mdm-im - the history journal's ACCESS_JOURNAL permission
+    // is signature-gated). CI provides it via RELEASE_KEYSTORE_* env vars; without them (local
+    // builds) the release APK is simply left unsigned.
+    signingConfigs {
+        System.getenv("RELEASE_KEYSTORE_PATH")?.let { path ->
+            create("release") {
+                storeFile = file(path)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            signingConfig = signingConfigs.findByName("release")
+            // Off for now: every build so far was tested as an unshrunk debug build, and R8 can
+            // strip Room/reflection-reached classes without warning. Revisit with real keep rules.
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
