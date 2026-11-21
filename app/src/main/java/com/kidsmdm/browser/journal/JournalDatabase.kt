@@ -21,7 +21,19 @@ class JournalDatabase private constructor(context: Context) :
 
     companion object {
         private const val DB_NAME = "kids_history_journal.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
+
+        /** Lowest possible id base (2023-11-14), in case the clock is unset at creation. */
+        private const val MIN_ID_BASE = 1_700_000_000_000L
+
+        /**
+         * Ids start at the journal's creation time in milliseconds instead of 1, so a reinstall
+         * (or cleared app data) keeps counting up past every id kids-launcher-mdm has already
+         * synced. The launcher only asks for `_id > ` its last synced id, so ids restarting at 1
+         * would hide every new visit from it. An install would need more than one visit per
+         * millisecond over its whole life to overlap the next one's base.
+         */
+        private fun newIdBase(): Long = maxOf(System.currentTimeMillis(), MIN_ID_BASE)
 
         const val TABLE = "journal_entry"
         const val COL_ID = "_id"
@@ -48,10 +60,23 @@ class JournalDatabase private constructor(context: Context) :
                 "$COL_TIMESTAMP INTEGER NOT NULL, " +
                 "$COL_CREATED_AT INTEGER NOT NULL)"
         )
+        setNextId(db, newIdBase())
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // No prior versions yet - nothing to migrate.
+        if (oldVersion < 2) {
+            // Version 1 numbered from 1. Move existing rows above the new base, so a launcher still
+            // holding a cursor from an earlier install picks them up too.
+            val base = newIdBase()
+            db.execSQL("UPDATE $TABLE SET $COL_ID = $COL_ID + $base")
+            setNextId(db, base)
+        }
+    }
+
+    /** The next row gets an id above [base] (AUTOINCREMENT also never goes below the highest existing id). */
+    private fun setNextId(db: SQLiteDatabase, base: Long) {
+        db.execSQL("DELETE FROM sqlite_sequence WHERE name = '$TABLE'")
+        db.execSQL("INSERT INTO sqlite_sequence (name, seq) VALUES ('$TABLE', $base)")
     }
 
     /** Called from BrowserWebViewClient on every completed top-level http(s) navigation. */
